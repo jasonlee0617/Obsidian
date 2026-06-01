@@ -660,3 +660,55 @@ git commit -m "fix fairino planning config"
 git pull --rebase origin main
 git push
 ```
+
+# 3.直接把当前 src 重新连接到远程仓库
+
+先进入当前 `src`：
+```
+cd ~/S622_robotarm/src
+```
+
+初始化 Git：
+```
+git init
+git branch -M main
+```
+
+添加远程仓库：
+```
+git remote add origin https://github.com/jasonlee0617/S622_robotarm_src.git
+```
+
+拉取远程信息：
+```
+git fetch origin
+```
+
+把当前仓库指向远程 `main` 历史：
+```
+git reset --mixed origin/main
+```
+
+然后检查状态：
+```
+git status
+git branch -vv
+git remote -v
+```
+
+如果你的当前文件和 GitHub 上完全一致，应该显示：
+```
+无文件要提交，干净的工作区
+位于分支 main  
+您的分支与上游分支 'origin/main' 一致。  
+  
+无文件要提交，干净的工作区
+```
+
+以及：
+```
+* main xxxxxx [origin/main] ...
+origin  https://github.com/jasonlee0617/S622_robotarm_src.git (fetch)
+origin  https://github.com/jasonlee0617/S622_robotarm_src.git (push)
+```
+
