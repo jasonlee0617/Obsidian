@@ -428,313 +428,282 @@ ros2 launch autoware_launch planning_simulator.launch.xml \
 
 ##  二、逐层启动步骤
 
-### 步骤1：车身模型加载
+```
+planning_simulator.launch.xml (Autoware 入口)
+│
+├── 层 1 ── 车身模型
+│   ├── vehicle_model:=wvcsc_vehicle  → 查找 wvcsc_vehicle_launch
+│   ├── sensor_model:=wvcsc_sensor_kit → 查找 wvcsc_sensor_kit_description
+│   │
+│   └── vehicle.launch.xml
+│         └── robot_state_publisher
+│               └── xacro tier4_vehicle_launch/urdf/vehicle.xacro
+│                     ├─ include wvcsc_vehicle_description/urdf/vehicle.xacro
+│                     │      └─ include wvcsc_vehicle.xacro (子宏库)
+│                     │           → 定义宏: base_footprint, base_link,
+│                     │                    wheel, steer_wheel
+│                     └─ include wvcsc_sensor_kit_description/urdf/sensors.xacro
+│                            ├─ include sensor/lidar/urdf/lidar.xacro
+│                            │      → 定义 sensor_lidar 宏
+│                            └─ include sensor/imu/urdf/imu.xacro
+│                                   → 定义 sensor_imu 宏
+│                     → 生成 robot_description: 8个link的完整URDF
+│
+├── 层 2 ── 传感器套件
+│   └── sensor_kit.launch.xml (wvcsc_sensor_kit_launch)
+│         │
+│         ├── sensing.launch.xml ── 聚合3个传感器
+│         │     │
+│         │     ├── lidar.launch.xml
+│         │     │     ├── common_sensor_launch/launch/lslidar_cx_launch.py
+│         │     │     │     └── lslidar_driver_node
+│         │     │     │           发布: /sensing/lidar/pointcloud_raw
+│         │     │     │
+│         │     │     └── pointcloud_to_laserscan_node
+│         │     │            /sensing/lidar/pointcloud_raw → /sensing/lidar/scan
+│         │     │            height过滤[-0.75,0.5], range[0.5,50], angle[-π,π]
+│         │     │
+│         │     ├── imu.launch.xml
+│         │     │     └── fdilink_ahrs/launch/ahrs_driver_autoware.launch.py
+│         │     │           └── ahrs_driver_node
+│         │     │                 发布: /sensing/imu/tamagawa/imu_raw
+│         │     │
+│         │     └── gnss.launch.xml (预留)
+│         │
+│         ├── can_bridge.launch.py
+│         │     └── can_bridge_node: VCI_OpenDevice→InitCAN→StartCAN
+│         │           发布: can_tx_1, can_tx_2
+│         │           订阅: can_rx_1, can_rx_2
+│         │
+│         ├── wtb_car_driver (底盘驱动节点)
+│         │     参数: WHEELBASE=0.82, vel_scale=1.0
+│         │     订阅: /cmd_vel, can_tx_2
+│         │     发布: /car_odom, can_rx_2, /wtb_car_message
+│         │
+│         └── vehicle_interface.launch.xml
+│               └── wvcsc_vehicle_interface 节点
+│                     订阅: /control/command/control_cmd
+│                          /control/command/gear_cmd
+│                          /car_odom
+│                     发布: /cmd_vel, /run_static
+│                          /vehicle/status/{velocity,steering,gear,control_mode}
+│
+├── 层 3 ── 地图加载
+│   └── map_path → sample-map-planning/
+│         ├── pointcloud_map_loader → /map/pointcloud_map (.pcd)
+│         ├── lanelet2_map_loader → /map/vector_map (lanelet2_map.osm)
+│         ├── lanelet2_map_visualization → Rviz 可视化
+│         └── vector_map_tf_generator → map→viewer TF
+│
+├── 层 4 ── 感知 (dummy 模式)
+│   └── dummy_perception_publisher
+│         → /perception/object_recognition/objects (空障碍物列表)
+│
+├── 层 5 ── 定位 (仿真模式: 定位层被仿真器接管)
+│   └── NDT + EKF Localizer 启动但不产出有效定位
+│         ↓ 定位责任转移到仿真器
+│
+├── 层 6 ── 规划 (3级)
+│   ├── Mission Planner: /goal_pose + /map/vector_map → route (车道级)
+│   ├── Behavior Planner: route + /perception/objects → LaneFollow 决策
+│   └── Motion Planner: 参考路径 + kinematic_state → /planning/trajectory
+│
+├── 层 7 ── 控制
+│   └── Trajectory Follower (MPC): trajectory + kinematic_state
+│         → /control/command/control_cmd (AckermannControlCommand)
+│         → /control/command/gear_cmd
+│
+└── 层 8 ── 仿真器闭环 ★核心★
+    └── autoware_simple_planning_simulator_node
+          输入: /control/command/control_cmd
+               /control/command/gear_cmd
+               /initialpose3d
+               simulator_model.param.yaml
+               
+          内部: 一阶延迟车辆动力学 + 阿克曼运动学
+               velocity += (cmd - velocity) / τ * dt
+               x += v × cos(yaw) × dt
+               y += v × sin(yaw) × dt
+               yaw += v × tan(steer) / wheel_base × dt
+               
+          输出: /localization/kinematic_state ← 回传给定位/规划
+               /vehicle/status/velocity_status
+               /vehicle/status/steering_status
+               TF: map → base_link
 
 ```
-vehicle_model:=wvcsc_vehicle
-  │
-  ├→ $(find wvcsc_vehicle_launch)/launch/vehicle.launch.xml
-  │     │
-  │     ├→ xacro 加载: $(find wvcsc_sensor_kit_description)/urdf/sensor_kit.xacro
-  │     │     │
-  │     │     ├→ include $(find wvcsc_vehicle_description)/urdf/vehicle.xacro
-  │     │     │     └→ include wvcsc_vehicle.xacro  (子宏定义)
-  │     │     │          └→ 定义宏: base_footprint, base_link, wheel, steer_wheel
-  │     │     │
-  │     │     ├→ include $(find wvcsc_sensor_kit_description)/urdf/sensors.xacro
-  │     │     │     ├→ include sensor/lidar/urdf/lidar.xacro  → 定义 sensor_lidar 宏
-  │     │     │     └→ include sensor/imu/urdf/imu.xacro      → 定义 sensor_imu 宏
-  │     │     │
-  │     │     ├→ 调用所有宏 → 生成完整 robot 模型 (8个link)
-  │     │     │     base_footprint, base_link,
-  │     │     │     left_front_link, right_front_link,
-  │     │     │     left_wheel_link, right_wheel_link,
-  │     │     │     laser, gyro_link
-  │     │     │
-  │     │     └→ robot_description 参数
-  │     │
-  │     └→ robot_state_publisher 节点
-  │           ├→ 读取 robot_description
-  │           └→ 发布静态 TF: base_footprint→base_link→laser/gyro_link/4轮
-  │
-  ├→ 加载 vehicle_info.param.yaml → 物理参数注入各 Autoware 节点
-  └→ 加载 simulator_model.param.yaml → 仿真器行为参数
-
-```
-**产出**: TF 树 (`base_footprint → base_link → ...`), 车辆物理参数
-
-### 步骤2：传感器套件加载
-```
-sensor_model:=wvcsc_sensor_kit
-  │
-  ├→ $(find wvcsc_sensor_kit_launch)/launch/sensor_kit.launch.xml
-  │     │
-  │     ├→ include sensing.launch.xml
-  │     │     │
-  │     │     ├→ can_bridge.launch.py
-  │     │     │     └→ can_bridge_node: VCI_OpenDevice → InitCAN → StartCAN
-  │     │     │           发布: can_tx_1, can_tx_2
-  │     │     │           订阅: can_rx_1, can_rx_2
-  │     │     │
-  │     │     ├→ lidar.launch.xml
-  │     │     │     ├→ lslidar_cx_launch.py
-  │     │     │     │     └→ lslidar_driver_node:
-  │     │     │     │           UDP 2368 → 解码 → PCL → /sensing/lidar/pointcloud_raw
-  │     │     │     │
-  │     │     │     └→ pointcloud_to_laserscan_node:
-  │     │     │           /sensing/lidar/pointcloud_raw → /sensing/lidar/scan
-  │     │     │           (height过滤 [-0.75,0.5], range [0.5,50])
-  │     │     │
-  │     │     ├→ imu.launch.xml
-  │     │     │     └→ ahrs_driver.launch.py
-  │     │     │           └→ ahrs_driver_node:
-  │     │     │                 串口 /dev/FDI_IMU_GNSS → CRC校验 → 坐标变换
-  │     │     │                 发布: /sensing/imu/tamagawa/imu_raw
-  │     │     │                       /sensing/gnss/pose
-  │     │     │
-  │     │     └→ gnss.launch.xml (预留，GPS已由 ahrs 发布)
-  │     │
-  │     ├→ wtb_car_driver (底盘驱动节点)
-  │     │     订阅: /cmd_vel, can_tx_2
-  │     │     发布: /car_odom, can_rx_2, /wtb_car_message
-  │     │     (仿真模式下 /cmd_vel 来自仿真器, 不是真底盘)
-  │     │
-  │     └→ vehicle_interface.launch.xml
-  │           └→ wvcsc_vehicle_interface 节点
-  │                 订阅: /control/command/control_cmd
-  │                      /control/command/gear_cmd
-  │                      /car_odom
-  │                 发布: /cmd_vel, /run_static
-  │                      /vehicle/status/velocity_status
-  │                      /vehicle/status/steering_status
-  │                      /vehicle/status/control_mode
-  │                      /vehicle/status/gear_status
-
-```
-**产出**: 传感器原始数据, 底盘控制通道
-
-### 步骤3：地图加载
-
-```
-map_path:=/home/robot/autoware_data/maps/sample-map-planning
-  │
-  ├→ pointcloud_map_loader
-  │     读取: *.pcd 点云地图文件
-  │     发布: /map/pointcloud_map
-  │
-  ├→ lanelet2_map_loader
-  │     读取: lanelet2_map.osm
-  │     发布: /map/vector_map
-  │
-  ├→ lanelet2_map_visualization
-  │     发布: /map/lanelet2_map (可视化标记)
-  │
-  └→ vector_map_tf_generator
-         发布: map→viewer (静态 TF)
-
-```
-**产出**: 点云地图, 车道地图
 
 ## 三、核心数据流闭环（仿真模式）
 
 这是 `planning_simulator` 的核心：**仿真器代替真车形成闭环**
 ```
-                        ┌─────────────────────────────┐
-                        │        Rviz2 用户交互         │
-                        │   2D Pose Estimate (初始位姿) │
-                        │   Goal 设定 (目标点)          │
-                        └──────────┬──────────────────┘
+                        ┌──────────────────────┐
+                        │       Rviz2          │
+                        │  /initialpose3d      │
+                        │  /planning/.../goal  │
+                        └──────────┬───────────┘
                                    │
-                    /initialpose3d │  /planning/.../goal
-                                   │
-╔══════════════════════════════════╪════════════════════════════════════════╗
-║                                  │                                       ║
-║  ┌───────────────────────────────┼────────────────────────────────────┐ ║
-║  │                         定位层                                     │ ║
-║  │                                                                   │ ║
-║  │  /sensing/lidar/scan ──→ NDT Scan Matcher ←── /map/pointcloud_map │ ║
-║  │         │                      │                                   │ ║
-║  │         │              位姿观测 (PoseWithCovarianceStamped)         │ ║
-║  │         │                      │                                   │ ║
-║  │         ▼                      ▼         /sensing/imu/.../imu_raw │ ║
-║  │    ┌────────────────────────────────────────┐                      │ ║
-║  │    │            EKF Localizer                │                      │ ║
-║  │    │  融合: NDT位姿 + IMU(wz) + 车速         │                      │ ║
-║  │    └────────────────┬───────────────────────┘                      │ ║
-║  │                     │                                              │ ║
-║  │    ┌────────────────▼───────────────────────┐                      │ ║
-║  │    │  输出:                                 │                      │ ║
-║  │    │  /localization/kinematic_state (Odometry)                     │ ║
-║  │    │  /localization/acceleration (Accel)    │                      │ ║
-║  │    │  TF: map → base_link                  │                      │ ║
-║  │    └────────────────┬───────────────────────┘                      │ ║
-║  └─────────────────────┼──────────────────────────────────────────────┘ ║
-║                        │                                                ║
-║                        ▼                                                ║
-║  ┌────────────────────────────────────────────────────────────────────┐ ║
-║  │                         感知层 (dummy 模式)                         │ ║
-║  │                                                                   │ ║
-║  │  autoware_dummy_perception_publisher                               │ ║
-║  │     └→ /perception/object_recognition/objects (空列表)             │ ║
-║  └────────────────────────────────────────────────────────────────────┘ ║
-║                        │                                                ║
-║                        ▼                                                ║
-║  ┌────────────────────────────────────────────────────────────────────┐ ║
-║  │                         规划层 (3级)                                │ ║
-║  │                                                                   │ ║
-║  │  ① Mission Planner                                                │ ║
-║  │     输入: /planning/.../goal + /map/vector_map                    │ ║
-║  │     输出: /planning/mission_planning/route (车道级路径)            │ ║
-║  │                                                                   │ ║
-║  │  ② Behavior Planner                                               │ ║
-║  │     输入: route + /perception/objects + /map/vector_map           │ ║
-║  │     输出: 行为决策 (LaneFollow) + 参考路径                          │ ║
-║  │                                                                   │ ║
-║  │  ③ Motion Planner                                                 │ ║
-║  │     输入: 参考路径 + 行为 + kinematic_state                        │ ║
-║  │     输出: /planning/scenario_planning/trajectory (Trajectory)     │ ║
-║  └──────────────────────────────┬─────────────────────────────────────┘ ║
-║                                 │                                       ║
-║                                 ▼                                       ║
-║  ┌────────────────────────────────────────────────────────────────────┐ ║
-║  │                         控制层                                     │ ║
-║  │                                                                   │ ║
-║  │  Trajectory Follower (MPC)                                        │ ║
-║  │     输入: /planning/.../trajectory                                │ ║
-║  │           /localization/kinematic_state                           │ ║
-║  │     输出: /control/command/control_cmd (AckermannControlCommand)  │ ║
-║  │           /control/command/gear_cmd                                │ ║
-║  └──────────────────────────────┬─────────────────────────────────────┘ ║
-║                                 │                                       ║
-║              /control/command/control_cmd                               ║
-║              /control/command/gear_cmd                                  ║
-║                                 │                                       ║
-╚═════════════════════════════════╪═══════════════════════════════════════╝
-                                  │
-                                  ▼
-╔═════════════════════════════════╪═══════════════════════════════════════╗
-║              仿真闭环 (simple_planning_simulator)                       ║
-║                                                                        ║
-║  ┌─────────────────────────────────────────────────────────────────┐  ║
-║  │  autoware_simple_planning_simulator_node                         │  ║
-║  │                                                                  │  ║
-║  │  输入:                                                           │  ║
-║  │    /control/command/control_cmd (AckermannControlCommand)        │  ║
-║  │    /control/command/gear_cmd                                     │  ║
-║  │    /initialpose3d (Rviz 2D Pose Estimate)                       │  ║
-║  │    simulator_model.param.yaml (延迟、噪声、速度限制)             │  ║
-║  │    vehicle_info.param.yaml   (轴距、轮距)                        │  ║
-║  │                                                                  │  ║
-║  │  内部: 一阶延迟车辆动力学模型                                      │  ║
-║  │    velocity += (cmd_velocity - velocity) / time_constant * dt   │  ║
-║  │    steer   += (cmd_steer   - steer)   / time_constant * dt     │  ║
-║  │    x += velocity * cos(yaw) * dt                                │  ║
-║  │    y += velocity * sin(yaw) * dt                                │  ║
-║  │    yaw += velocity * tan(steer) / wheel_base * dt               │  ║
-║  │                                                                  │  ║
-║  │  输出 (模拟传感器):                                               │  ║
-║  │    /localization/kinematic_state  ← 模拟位姿 (闭环回定位层!)      │  ║
-║  │    /localization/acceleration                                     │  ║
-║  │    /vehicle/status/velocity_status ← 模拟速度                     │  ║
-║  │    /vehicle/status/steering_status ← 模拟转向角                   │  ║
-║  │    /vehicle/status/gear_status                                     │  ║
-║  │    /vehicle/status/control_mode                                    │  ║
-║  │    TF: map → base_link  ← 模拟位姿的TF表示                         │  ║
-║  └─────────────────────────────────────────────────────────────────┘  ║
-║                                                                        ║
-║  ⚠️ 仿真模式下, wtb_car_driver 和 wvcsc_vehicle_interface             ║
-║     虽然启动了, 但 /cmd_vel 被仿真器闭环拦截，不经过CAN到真底盘            ║
-║                                                                        ║
-╚════════════════════════════════════════════════════════════════════════╝
+        ╔══════════════════════════╪═══════════════════════════╗
+        ║                          ▼                          ║
+        ║  ┌─────────────────────────────────────────────┐   ║
+        ║  │              Planning (3级)                  │   ║
+        ║  │  Mission → Behavior → Motion                 │   ║
+        ║  │                 │                            │   ║
+        ║  │       /planning/trajectory                   │   ║
+        ║  └─────────────────┬───────────────────────────┘   ║
+        ║                    │                               ║
+        ║                    ▼                               ║
+        ║  ┌─────────────────────────────────────────────┐   ║
+        ║  │              Control                         │   ║
+        ║  │  Trajectory Follower (MPC)                   │   ║
+        ║  │                 │                            │   ║
+        ║  │  /control/command/control_cmd                │   ║
+        ║  │  (AckermannControlCommand)                   │   ║
+        ║  └─────────────────┬───────────────────────────┘   ║
+        ║                    │                               ║
+        ╚════════════════════╪═══════════════════════════════╝
+                             │
+                             ▼
+        ╔════════════════════════════════════════════════════╗
+        ║         ★ 仿真器 (simple_planning_simulator) ★     ║
+        ║                                                    ║
+        ║  ┌──────────────────────────────────────┐         ║
+        ║  │  输入:                                │         ║
+        ║  │    /control/command/control_cmd       │         ║
+        ║  │      longitudinal.velocity  = 0.5    │         ║
+        ║  │      lateral.steering_angle = 0.15   │         ║
+        ║  │                                      │         ║
+        ║  │  一阶延迟动力学 (25ms/40Hz):           │         ║
+        ║  │    v_actual += (v_cmd - v_actual)    │         ║
+        ║  │               / δ_acc × dt           │         ║
+        ║  │    δ_actual += (δ_cmd - δ_actual)    │         ║
+        ║  │               / δ_steer × dt         │         ║
+        ║  │                                      │         ║
+        ║  │  阿克曼运动学积分:                      │         ║
+        ║  │    x   += v × cos(yaw) × dt          │         ║
+        ║  │    y   += v × sin(yaw) × dt          │         ║
+        ║  │    yaw += v × tan(δ) / 0.82 × dt     │         ║
+        ║  │                                      │         ║
+        ║  │  输出:                                │         ║
+        ║  │    /localization/kinematic_state     │  ────────┐
+        ║  │    /vehicle/status/velocity_status    │         │
+        ║  │    /vehicle/status/steering_status    │         │
+        ║  │    TF: map → base_link                │         │
+        ║  └──────────────────────────────────────┘         │
+        ║                                                    │
+        ╚════════════════════════════════════════════════════╪═══
+                                                             │
+                    ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ┘
+                    │  /localization/kinematic_state
+                    │  (反馈回定位层 + 规划层，形成闭环)
+                    │
+                    ▼
+              ┌──────────────┐        ┌──────────────┐
+              │ Motion       │        │ Trajectory   │
+              │ Planner      │───────→│ Follower     │
+              │ (根据新位姿   │        │ (根据新位姿  │
+              │  重新优化)    │        │  重新计算)   │
+              └──────────────┘        └──────┬───────┘
+                                             │
+                                    /control/command/control_cmd
+                                             │
+                                             ▼
+                                     回到仿真器 → 循环
 
 ```
 
 ## 四、关键话题数据流图
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                       仿真闭环话题流                                      │
-└─────────────────────────────────────────────────────────────────────────┘
-
-  Rviz2
-  │ /initialpose3d              │ /planning/.../goal
-  ▼                             ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │                     Autoware 算法引擎                         │
-  │                                                              │
-  │  /map/pointcloud_map ──→ NDT匹配 ──→ EKF ──→ /localization/ │
-  │  /sensing/lidar/scan ──→           ←── /sensing/imu/raw     │   kinematic_state
-  │                                                              │
-  │  /localization/kinematic_state ──→ Motion Planner            │
-  │  /planning/.../goal            ──→ Mission Planner           │
-  │  /perception/objects (dummy)   ──→ Behavior Planner          │
-  │                                                              │
-  │  /planning/.../trajectory ──→ Trajectory Follower (MPC)     │
-  │                                                              │
-  │  /control/command/control_cmd  ←── 输出                      │
-  │  /control/command/gear_cmd     ←── 输出                      │
-  └─────────────────────────┬────────────────────────────────────┘
-                            │
-                            ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │  simple_planning_simulator (替代真车)                         │
-  │                                                              │
-  │  接收 control_cmd → 车辆动力学仿真 → 发布:                    │
-  │                                                              │
-  │  /localization/kinematic_state ──→ 反馈回定位层 (形成闭环)    │
-  │  /vehicle/status/velocity_status                              │
-  │  /vehicle/status/steering_status                              │
-  │  /vehicle/status/gear_status                                  │
-  │  /vehicle/status/control_mode                                 │
-  │  TF: map → base_link                                          │
-  └──────────────────────────────────────────────────────────────┘
-         │                                    ▲
-         │  /vehicle/status/*                  │  /control/command/*
-         ▼                                    │
-  ┌────────────────────────────────────────────┴─────────────────┐
-  │  wvcsc_vehicle_interface (仿真模式下的作用)                    │
-  │                                                              │
-  │  仿真器→ /vehicle/status/* → 状态反馈                         │
-  │  Autoware→ /control/command/* → 转换为 /cmd_vel              │
-  │                                                              │
-  │  /car_odom (无数据, 仿真器不产生此话题)                        │
-  └──────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                        simulation_mode=true 时的话题流                  │
+├──────────────────┬─────────────────┬──────────────────────────────────┤
+│      话题         │     发布者       │     订阅者 / 用途                │
+├──────────────────┼─────────────────┼──────────────────────────────────┤
+│ /sensing/lidar/  │ lslidar_driver  │ pointcloud_to_laserscan          │
+│   pointcloud_raw │                 │                                  │
+│ /sensing/lidar/  │ pointcloud_to_  │ NDT Scan Matcher                │
+│   scan           │   laserscan     │                                  │
+│ /sensing/imu/    │ ahrs_driver     │ EKF Localizer                   │
+│   tamagawa/imu   │                 │                                  │
+├──────────────────┼─────────────────┼──────────────────────────────────┤
+│ /map/pointcloud  │ pointcloud_map_ │ NDT Scan Matcher                │
+│   _map           │   loader        │                                  │
+│ /map/vector_map  │ lanelet2_map_   │ Mission Planner, Behavior Plnr  │
+│                  │   loader        │                                  │
+├──────────────────┼─────────────────┼──────────────────────────────────┤
+│ /localization/   │ simple_planning │ Motion Planner, Traj Follower   │
+│   kinematic_state│   _simulator ★ │ (★ 仿真器产出, 非真实定位)       │
+│                  │                 │                                  │
+│ /planning/       │ Motion Planner  │ Trajectory Follower              │
+│   trajectory     │                 │                                  │
+│                  │                 │                                  │
+│ /control/command/│ Trajectory      │ simple_planning_simulator ★     │
+│   control_cmd    │   Follower      │ (★ 仿真器闭环入口)               │
+├──────────────────┼─────────────────┼──────────────────────────────────┤
+│ /vehicle/status/ │ simple_planning │ autoware_vehicle_velocity_       │
+│   velocity_status│   _simulator    │   converter                     │
+│                  │                 │                                  │
+│ /vehicle/status/ │ simple_planning │ 状态监控                         │
+│   steering_status│   _simulator    │                                  │
+├──────────────────┼─────────────────┼──────────────────────────────────┤
+│ /cmd_vel         │ wvcsc_vehicle_  │ wtb_car_driver                  │
+│                  │   interface     │ (仿真模式下发到真车但车不动!)      │
+└──────────────────┴─────────────────┴──────────────────────────────────┘
 
 ```
 
-## 六、端到端流程：从 Rviz 点目标到仿真车运动
+##  五、关键数据闭环路径
 
 ```
-时刻T0: 用户在 Rviz 点击 "2D Pose Estimate"
+时刻 T0: 用户 Rviz "2D Pose Estimate"
   → /initialpose3d → simple_planning_simulator
-  → 仿真器初始化车辆位姿 (x, y, yaw)
-  → 发布 TF: map → base_link
+  → 仿真器初始化位姿 (x=3749.71, y=73724.3 — 地图原点偏移)
 
-时刻T1: 用户在 Rviz 点击 "Goal" 设定目标
-  → /planning/mission_planning/goal → Mission Planner
-  → Mission Planner 读取 lanelet2_map.osm → 生成车道级 route
-  → Behavior Planner 检查 route + /perception/objects(空) → LaneFollow 决策
-  → Motion Planner 根据 route + kinematic_state → 生成 trajectory (未来3秒位姿序列)
+时刻 T1: 用户 Rviz "Goal"
+  → Mission Planner: 车道级 route
+  → Behavior Planner: LaneFollow 决策
+  → Motion Planner: 生成 trajectory (未来 3s 的位姿序列)
 
-时刻T2: trajectory 到达 Trajectory Follower (MPC)
-  → MPC 计算当前最优控制量:
-      longitude.velocity = 0.5 m/s  (逐步加速)
-      lateral.steering_tire_angle = 0.0 rad (直行)
-  → 发布 /control/command/control_cmd
+时刻 T2: Trajectory Follower (MPC)
+  → /control/command/control_cmd
+      longitudinal.velocity = 0.5 m/s
+      lateral.steering_tire_angle = 0.0 rad
 
-时刻T3: simple_planning_simulator 收到 control_cmd
-  → 一阶延迟动力学:
-      actual_velocity ← cmd_velocity (带 0.1s 延迟 + 0.1s 时间常数)
-      actual_steer   ← cmd_steer   (带 0.24s 延迟 + 0.27s 时间常数)
-  → 阿克曼运动学:
-      x += actual_velocity * cos(yaw) * 0.025s
-      y += actual_velocity * sin(yaw) * 0.025s
-      yaw += actual_velocity * tan(actual_steer) / 0.82 * 0.025s
+时刻 T3: simple_planning_simulator 收到 control_cmd
+  → 一阶延迟滤波 (acc_time_constant=0.1s)
+  → 阿克曼积分 (wheel_base=0.82, dt=25ms)
   → 发布 /localization/kinematic_state (新位姿)
-  → 发布 TF: map → base_link (新位姿)
-  → Rviz 中车辆模型移动到新位置
+  → 发布 TF: map → base_link
+  → Rviz 中车身移动到新位置
 
-时刻T4: 回到 T2, 用新位姿重新规划 → 循环 (25ms = 40Hz)
+时刻 T4: Motion Planner 收到新 kinematic_state
+  → 重新规划 trajectory (位姿变了)
+  → Trajectory Follower 重新计算控制量
+  → 发布新 control_cmd
+
+时刻 T5: 回到 T3 → 持续循环 (40Hz, 25ms/周期)
+
+...直到 kinematic_state 接近 goal 位置 (tolerance 内), 或异常中止
 
 ```
+
 这个闭环一直运行，直到车辆到达目标点（`goal_reached_tolerance` 范围内）或者遇到异常
+
+## 六、仿真 vs 真车：关键差异
+
+```
+┌──────────────┬─────────────────────────┬──────────────────────────┐
+│              │  仿真 (planning_simulator)│  真车 (autoware.launch)  │
+├──────────────┼─────────────────────────┼──────────────────────────┤
+│ 定位来源      │ 仿真器 (理想运动学)       │ NDT 扫描匹配 (真实)       │
+│ 控制目标      │ 仿真器 (模拟车辆运动)      │ wvcsc_vehicle_interface  │
+│ /cmd_vel 流向 │ interface → wtb_car      │ interface → wtb_car      │
+│              │ → CAN → 底盘 (不执行)      │ → CAN → 底盘 (真转)      │
+│ /car_odom    │ 来自底盘反馈 (有数据)      │ 来自底盘反馈 (真实里程计) │
+│ 闭环方式      │ 仿真器→kinematic_state    │ 底盘→/car_odom→EKF→     │
+│              │ →规划→控制→仿真器          │ /ekf_odom→NDT→规划→     │
+│              │                           │ 控制→interface→底盘     │
+└──────────────┴─────────────────────────┴──────────────────────────┘
+
+```
