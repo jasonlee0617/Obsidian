@@ -170,4 +170,10 @@ git push -u origin main
 ```
 
 
-## 1.10
+## 1.10冲突文件解决
+
+
+
+```
+git pull --rebase origin main
+```
