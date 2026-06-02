@@ -712,3 +712,190 @@ origin  https://github.com/jasonlee0617/S622_robotarm_src.git (fetch)
 origin  https://github.com/jasonlee0617/S622_robotarm_src.git (push)
 ```
 
+# 4.常用git命令
+
+## 4.1查看状态
+```
+git status
+```
+常见结果：
+```
+无文件要提交，干净的工作区
+```
+说明没有修改
+
+如果看到：
+```
+修改： xxx.py
+```
+说明文件被改了，还没有提交
+
+如果看到：
+```
+未跟踪的文件：
+```
+说明有新文件还没有加入 Git 管理
+
+## 4.2确认远程仓库是否正确
+
+```
+git remote -v
+```
+
+项目正常应该是：
+```
+##项目地址不同相应修改
+origin  https://github.com/jasonlee0617/S622_robotarm_src.git (fetch)
+origin  https://github.com/jasonlee0617/S622_robotarm_src.git (push)
+```
+
+如果远程地址错了，修改：
+```
+git remote set-url origin https://github.com/jasonlee0617/S622_robotarm_src.git
+```
+
+## 4.3确认当前分支
+
+```
+git branch
+```
+
+更详细查看：
+```
+git branch -vv
+```
+
+## 4.4从 GitHub 拉取最新代码
+
+### 4.4.1本地没有修改时，直接拉取
+
+```
+git pull --rebase origin main
+```
+
+如果成功，可能显示：
+```
+Already up to date.
+```
+
+### 4.4.2本地有修改，但想保留，再拉取
+
+先临时保存本地修改：
+```
+git stash push -m "save local changes before pull"
+```
+
+然后拉取 GitHub 最新代码：
+```
+git pull --rebase origin main
+```
+
+再恢复刚才的本地修改：
+```
+git stash pop
+```
+
+### 4.4.3本地修改不要了，只想以 GitHub 为准
+
+如果你确定当前本地修改不要了：
+```
+git restore .
+```
+
+然后拉取：
+```
+git pull --rebase origin main
+```
+
+如果还有未跟踪文件，比如临时文件，可以先预览：
+```
+git clean -fdn
+```
+
+确认没问题后删除：
+```
+git clean -fd
+```
+
+## 4.5上传本地修改到 GitHub
+
+```
+##切换项目目录
+cd ~/S622_robotarm/src
+##查看状态
+git status
+##拉取最新信息
+git pull --rebase origin main
+##添加修改文件
+git add .
+##提交
+git commit -m "update source code"
+##推送最新本地信息到仓库
+git push
+```
+
+# 5.整合git分支
+
+![[Pasted image 20260602101835.png]]
+
+一个仓库出现多个分支，需要整合分支
+
+## 5.1 确认.git在哪
+
+```
+find . -maxdepth 3 -type d -name ".git" -print
+```
+
+你大概率会看到：
+```
+##仓库主分支
+./.git
+##另外分支
+./serial/.git
+```
+
+含义是：
+```
+./.git          是 src 主仓库的 Git
+./serial/.git   是 serial 自己的 Git，需要删除
+```
+
+## 5.2删除额外Git
+
+```
+##主分支
+cd ~/WVCSC_S2Z_UTB_ARM/src
+##删除额外分支
+rm -rf serial/.git
+```
+
+然后确认是否删除成功：
+```
+find serial -maxdepth 2 -type d -name ".git" -print
+```
+
+如果没有任何输出，说明 `serial/.git` 已经删除成功
+
+## 5.3把 serial 作为普通 ROS2 包加入 src 主仓库
+
+```
+##根据目录进行相应操作
+cd ~/WVCSC_S2Z_UTB_ARM/src
+git status
+```
+
+如果之前错误地把 `serial` 作为嵌入式仓库暂存过，先取消：
+```
+git rm --cached -f serial
+```
+
+## 5.4提交到 src 的 main 分支
+
+```
+git commit -m "convert serial to normal ROS2 package"
+```
+
+然后推送：
+```
+git push
+```
