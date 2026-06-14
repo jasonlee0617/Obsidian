@@ -38,3 +38,6 @@ ubuntu系统自带录制视频快捷键
 
 视觉伺服
 固定 PD → 自适应增益 PD 、神经网络PD控制、前馈补偿PD控制→ 带约束的 MPC → 视觉 + 阻抗混合控制 → 学习增强 MPC / 学习补偿
+
+ros2 bag record -o ~/bags/NLADRC_sample_data1   /servo_nladrc_debug   /servo_error_xyyaw   /servo_cmd_stages   /servo_ff_vel_filt  /ee_pose_base
+
