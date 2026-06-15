@@ -13,12 +13,20 @@
             "state": {
               "type": "markdown",
               "state": {
+<<<<<<< HEAD
                 "file": "ros2相关操作/skills安装.md",
+=======
+                "file": "ros2相关操作/Plotjuggler和话题数据录制.md",
+>>>>>>> f965e7249b49d8f6b3d5d29531eb9402da9ac7ad
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
+<<<<<<< HEAD
               "title": "skills安装"
+=======
+              "title": "Plotjuggler和话题数据录制"
+>>>>>>> f965e7249b49d8f6b3d5d29531eb9402da9ac7ad
             }
           }
         ]
@@ -169,12 +177,18 @@
   },
   "active": "911d91d8c9d5e13e",
   "lastOpenFiles": [
+<<<<<<< HEAD
     "ros2相关操作/安装Odrivetool.md",
     "ros2相关操作/skills安装.md",
+=======
+    "yolov8-obb识别抓取/手眼标定/hand_eye_calibration/手眼标定相关数学推导.md",
+    "ros2相关操作/Plotjuggler和话题数据录制.md",
+>>>>>>> f965e7249b49d8f6b3d5d29531eb9402da9ac7ad
     "ros2相关操作/Git相关操作.md",
     "ROS 2 移动机器人导航与自动驾驶/Autoware学习/运行官方Autoware的Demo.md",
     "ROS 2 移动机器人导航与自动驾驶/Autoware学习/Autoware.universe 源码下载编译.md.bak-20260608-113834",
     "ROS 2 移动机器人导航与自动驾驶/Autoware学习/Autoware.universe 源码下载编译.md.bak-20260608-111857",
+<<<<<<< HEAD
     "ROS 2 移动机器人导航与自动驾驶/Autoware学习/Autoware.universe 源码下载编译.md",
     "ROS 2 移动机器人导航与自动驾驶/Autoware学习/WVCSC_S2Z_UTB_ARM实车Autoware部署.md",
     "ROS 2 移动机器人导航与自动驾驶/Autoware学习/WVCSC_S2Z_UTB_ARM.md",
@@ -189,18 +203,36 @@
     "ros2相关操作/Images storage/Pasted image 20260602101835.png",
     "ros2相关操作/Images storage",
     "ros2相关操作/Plotjuggler和话题数据录制.md",
+=======
+    "慧灵机械臂/慧灵机械臂.md",
+    "yolov8-obb识别抓取/手眼标定/hand_eye_calibration/手眼标定相关问题解决.md",
+    "yolov8-obb识别抓取/手眼标定/s622arm手眼标定实现流程.md",
+    "ros2相关操作/Images storage/Pasted image 20260602101835.png",
+    "ros2相关操作/Images storage",
+    "ROS 2 移动机器人导航与自动驾驶/Autoware学习/WVCSC_S2Z_UTB_ARM实车Autoware部署.md",
+    "ROS 2 移动机器人导航与自动驾驶/Autoware学习/WVCSC_S2Z_UTB_ARM.md",
+    "ROS 2 移动机器人导航与自动驾驶/Autoware学习/ROS 2 移动机器人导航系统知识学习.md",
+    "ROS 2 移动机器人导航与自动驾驶/Autoware学习/Autoware学习文档.md",
+    "ROS 2 移动机器人导航与自动驾驶/Autoware学习/Autoware.universe 源码下载编译.md",
+    "ROS 2 移动机器人导航与自动驾驶/Autoware学习",
+    "ROS 2 移动机器人导航与自动驾驶/Autoware.universe 源码下载编译.md",
+>>>>>>> f965e7249b49d8f6b3d5d29531eb9402da9ac7ad
     "ROS 2 移动机器人导航与自动驾驶/卡尔曼滤波算法的推导：最优递推估计.md",
     "未命名.base",
     "未命名.md",
+    "S622_robotarm/servo.md",
     "工作安排.md",
     "S622_robotarm",
     "ros2相关操作/硬盘大小调整.md",
     "gazebo机械臂仿真/dummy2机械臂仿真知识点.md",
+    "ros2相关操作/安装Odrivetool.md",
     "gazebo机械臂仿真/dummy2-gripperv2_description/display.launch.py（夹爪）.md",
     "ros2相关操作/隐藏、恢复工作空间.md",
     "ros2相关操作",
     "yolov8-obb识别抓取/识别抓取原理.md",
+    "ROS 2 移动机器人导航与自动驾驶/WVCSC_S2Z_UTB_ARM.md",
     "ROS 2 移动机器人导航与自动驾驶/fishbot项目复现.md",
+    "ROS 2 移动机器人导航与自动驾驶/ROS 2 移动机器人导航系统知识学习.md",
     "Image storage/Pasted image 20250728205005.png",
     "Image storage/Pasted image 20250728204728.png",
     "Image storage/Pasted image 20250728204637.png",
@@ -212,9 +244,7 @@
     "Image storage/Pasted image 20250726172924.png",
     "Image storage",
     "Images storage",
-    "机械臂数学建模/关节空间与笛卡尔空间轨迹规划.md",
     "机械臂数学建模/附件",
-    "机械臂数学建模/机械臂奇异位形与逆运动学.md",
     "未命名.canvas",
     "EWMA-指数加权移动平均/11.canvas",
     "未命名 1.canvas",
