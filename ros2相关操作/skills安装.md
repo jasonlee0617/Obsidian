@@ -1,4 +1,10 @@
-# Codex Skills 安装与使用说明
+# Codex Skills 安装、理解与使用入门
+
+本文档用于整理本机 Codex Skills 的安装方式、概念区别、Cloudflare skills 的能力边界，以及后续维护方法。
+
+目标不是只记录一次命令，而是把这套东西整理成一篇适合后续反复查阅的入门文档。
+
+---
 
 ## 1. 什么是 Skill
 
@@ -18,6 +24,11 @@
 ```text
 $cloudflare 帮我写一个最小 Cloudflare Worker
 ```
+
+简单理解：
+
+- 普通对话：Codex 按通用能力回答
+- 命中 skill：Codex 进入某一类任务的专用工作流
 
 ---
 
@@ -58,9 +69,29 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 
 ---
 
-## 3. 本次实际环境
+## 3. Skills 到底能带来什么
 
-### 3.1 本地已克隆仓库位置
+安装 skill 之后，Codex 不只是“知道一个名字”，而是会得到一套更稳定的任务处理方式，包括：
+
+- 遇到某类任务时优先读取哪类文档
+- 哪些命令应该先检查
+- 哪些配置项是必须的
+- 哪些做法是推荐路径
+- 哪些是常见坑和反模式
+- 在复杂任务里应该先问什么、先验证什么
+
+例如：
+
+- 没装 `wrangler` skill 时，Codex 可能只会泛泛地说怎么部署 Worker
+- 装了 `wrangler` skill 后，Codex 会优先按 Cloudflare 的推荐方式处理 `wrangler.jsonc`、`wrangler deploy`、`wrangler types`、bindings、环境切换等细节
+
+所以 skill 的价值不只是“会不会”，而是“会不会以正确流程做”。
+
+---
+
+## 4. 本次实际环境
+
+### 4.1 本地已克隆仓库位置
 
 ```bash
 /home/robot/skills
@@ -72,7 +103,7 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 - 后续迁移到了 `/home/robot/skills`
 - 由于本次安装方式使用的是软链接，所以仓库路径变化后，需要同步修复 `~/.codex/skills` 下的链接目标
 
-### 3.2 该仓库中真正的 Skill 目录
+### 4.2 该仓库中真正的 Skill 目录
 
 ```bash
 /home/robot/skills/skills
@@ -92,7 +123,7 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 - `workers-best-practices`
 - `wrangler`
 
-### 3.3 本机 Codex 的用户 Skill 目录
+### 4.3 本机 Codex 的用户 Skill 目录
 
 本次实际安装位置是：
 
@@ -107,9 +138,9 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 
 ---
 
-## 4. 推荐安装方式：软链接安装
+## 5. 推荐安装方式：软链接安装
 
-### 4.1 为什么推荐软链接
+### 5.1 为什么推荐软链接
 
 推荐原因：
 
@@ -123,7 +154,7 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 
 如果未来该仓库可能被移动、重命名或删除，则可以改用复制安装。
 
-### 4.2 全局安装和仓库安装的区别
+### 5.2 全局安装和仓库安装的区别
 
 #### 全局安装
 
@@ -160,15 +191,15 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 
 ---
 
-## 5. 安装步骤
+## 6. 安装步骤
 
-### 5.1 创建 Codex 的用户 Skill 目录
+### 6.1 创建 Codex 的用户 Skill 目录
 
 ```bash
 mkdir -p ~/.codex/skills
 ```
 
-### 5.2 批量把本地 Cloudflare skills 软链接到 Codex
+### 6.2 批量把本地 Cloudflare skills 软链接到 Codex
 
 ```bash
 for d in /home/robot/skills/skills/*; do
@@ -182,7 +213,7 @@ for d in /home/robot/skills/skills/*; do
 done
 ```
 
-### 5.3 本次实际安装结果
+### 6.3 本次实际安装结果
 
 已成功链接：
 
@@ -198,7 +229,7 @@ done
 - `workers-best-practices`
 - `wrangler`
 
-### 5.4 核心最小集合
+### 6.4 核心最小集合
 
 如果只想先装最常用的几个，可以只保留：
 
@@ -209,9 +240,336 @@ done
 
 ---
 
-## 6. 安装后验证
+## 7. 这些新安装的 skills 都能做什么
 
-### 6.1 先在终端检查链接是否存在
+下面的介绍不是单纯翻译名称，而是从“你实际遇到什么任务时该用它”来说明。
+
+### 7.1 `cloudflare`
+
+定位：
+
+- Cloudflare 平台总入口 skill
+
+适合任务：
+
+- Workers
+- Pages
+- KV / D1 / R2 / Queues / Vectorize
+- Workers AI
+- Tunnel / 网络能力
+- 安全类服务
+
+它的作用：
+
+- 先判断你应该用 Cloudflare 的哪个产品
+- 再把任务导向更细的 skill 或对应工作流
+
+适合示例：
+
+```text
+$cloudflare 帮我做一个 Cloudflare Worker + D1 的最小项目
+$cloudflare 我该用 KV 还是 R2 存这类数据
+```
+
+### 7.2 `wrangler`
+
+定位：
+
+- Cloudflare Workers CLI 专项 skill
+
+适合任务：
+
+- 初始化 Worker 项目
+- 本地开发 `wrangler dev`
+- 部署 `wrangler deploy`
+- 编写和检查 `wrangler.jsonc`
+- 添加各类 bindings
+- 配置环境与类型生成
+
+它的作用：
+
+- 优先按 Cloudflare 官方推荐方式组织 CLI 命令和配置
+- 避免手写错误的配置字段
+
+适合示例：
+
+```text
+$wrangler 帮我初始化一个 Worker 项目并配置 D1
+$wrangler 检查这个 wrangler.jsonc 有没有问题
+```
+
+### 7.3 `durable-objects`
+
+定位：
+
+- Cloudflare 强状态协调组件 skill
+
+适合任务：
+
+- 聊天室
+- 实时协作
+- 游戏房间
+- 库存 / 预订 / 锁资源
+- WebSocket 持久连接
+- alarms 定时调度
+
+它的作用：
+
+- 帮你正确设计 DO 粒度
+- 提醒迁移、存储、并发和初始化模式
+
+适合示例：
+
+```text
+$durable-objects 帮我设计一个聊天室 Durable Object
+$durable-objects review 一下这段 DO 代码
+```
+
+### 7.4 `agents-sdk`
+
+定位：
+
+- Cloudflare 上做 AI agents 的核心 skill
+
+适合任务：
+
+- 有状态 agent
+- WebSocket 实时 agent
+- callable RPC
+- schedule / cron
+- durable workflow
+- MCP server / MCP client
+- 聊天 agent
+- 邮件型 agent
+
+它的作用：
+
+- 指导如何在 Workers 上构建带状态、可调度、可扩展的 agent 系统
+
+适合示例：
+
+```text
+$agents-sdk 帮我做一个有持久状态的聊天 agent
+$agents-sdk 帮我写一个支持 scheduleEvery 的巡检 agent
+```
+
+### 7.5 `sandbox-sdk`
+
+定位：
+
+- Cloudflare 安全沙箱执行环境 skill
+
+适合任务：
+
+- 在线代码解释器
+- 执行不可信代码
+- AI code interpreter
+- 隔离的脚本执行环境
+- 带文件系统的临时运行容器
+
+它的作用：
+
+- 指导如何用 Cloudflare Sandbox SDK 执行命令、写文件、开放端口、维护会话上下文
+
+适合示例：
+
+```text
+$sandbox-sdk 帮我做一个 Python 代码执行沙箱
+$sandbox-sdk 帮我把这个 AI code interpreter 跑起来
+```
+
+### 7.6 `cloudflare-email-service`
+
+定位：
+
+- Cloudflare 邮件发送与接收专项 skill
+
+适合任务：
+
+- Worker 发事务邮件
+- Email Routing
+- 收邮件并处理
+- 通过 REST API 发邮件
+- agent 处理邮件
+- 可投递性、SPF、DKIM、DMARC
+
+它的作用：
+
+- 把邮件功能接入过程中那些容易漏掉的前置配置补齐
+
+适合示例：
+
+```text
+$cloudflare-email-service 给我的 Worker 加验证码邮件
+$cloudflare-email-service 帮我接收用户回复邮件并交给 agent 处理
+```
+
+### 7.7 `turnstile-spin`
+
+定位：
+
+- Cloudflare Turnstile 一条龙接入 skill
+
+适合任务：
+
+- 注册表单防机器人
+- 登录表单防滥用
+- 联系表单防垃圾提交
+- 从 reCAPTCHA / hCaptcha 迁移到 Turnstile
+
+它的作用：
+
+- 扫描代码库
+- 创建 Turnstile widget
+- 部署 siteverify Worker
+- 改前端提交逻辑
+- 做完整验证
+
+适合示例：
+
+```text
+$turnstile-spin 给这个表单接入 Turnstile
+$turnstile-spin 把项目里的 reCAPTCHA 换成 Turnstile
+```
+
+### 7.8 `workers-best-practices`
+
+定位：
+
+- Cloudflare Worker 代码评审与最佳实践 skill
+
+适合任务：
+
+- review Worker 项目
+- 检查配置是否符合现代写法
+- 检查绑定、类型、secret、streaming、waitUntil 等问题
+- 识别常见反模式
+
+它的作用：
+
+- 不只是说“能跑”，而是帮你识别哪些写法以后会埋坑
+
+适合示例：
+
+```text
+$workers-best-practices review 一下这个 Worker 仓库
+$workers-best-practices 看看这段代码有没有反模式
+```
+
+### 7.9 `cloudflare-one`
+
+定位：
+
+- Cloudflare Zero Trust / SASE / 企业接入 skill
+
+适合任务：
+
+- Access
+- Gateway
+- WARP
+- Tunnel
+- DLP
+- CASB
+- device posture
+- Cloudflare WAN
+
+它的作用：
+
+- 用于设计、配置、排障和审查企业级 Zero Trust 架构
+
+适合示例：
+
+```text
+$cloudflare-one 帮我设计一个私有应用通过 Access 发布的方案
+$cloudflare-one 帮我排查 WARP + Tunnel 的访问问题
+```
+
+### 7.10 `cloudflare-one-migrations`
+
+定位：
+
+- Cloudflare One 迁移专项 skill
+
+适合任务：
+
+- 从 Zscaler ZIA / ZPA 迁移
+- 从 Palo Alto / Prisma 迁移
+- 从传统 VPN / SWG / SASE 迁移到 Cloudflare One
+
+它的作用：
+
+- 帮你先做规则映射、资产梳理、风险识别和迁移计划，而不是直接草率改配置
+
+适合示例：
+
+```text
+$cloudflare-one-migrations 帮我规划从 ZPA 迁移到 Cloudflare One
+```
+
+### 7.11 `web-perf`
+
+定位：
+
+- Web 性能审计 skill
+
+适合任务：
+
+- Core Web Vitals 分析
+- LCP / INP / CLS 问题排查
+- 网络请求链路分析
+- 页面性能优化建议
+
+它的作用：
+
+- 借助 Chrome DevTools MCP 做性能审计
+
+注意：
+
+- 该 skill 依赖 `chrome-devtools` MCP
+- 如果没有配置对应 MCP，它就不能完整发挥作用
+
+适合示例：
+
+```text
+$web-perf 帮我分析这个网页为什么 LCP 很差
+```
+
+---
+
+## 8. Cloudflare skills 速查表
+
+这一节适合在“我想做什么，但不知道该叫哪个 skill”时快速查。
+
+| 我想做什么 | 应该优先用哪个 skill |
+|-----------|----------------------|
+| 做一个最小 Cloudflare Worker | `cloudflare` 或 `wrangler` |
+| 初始化 Worker 项目、部署、改 wrangler 配置 | `wrangler` |
+| 做聊天室、房间状态、库存锁、实时协作 | `durable-objects` |
+| 做 AI agent、带状态聊天、可调度 agent | `agents-sdk` |
+| 做安全代码执行沙箱 / code interpreter | `sandbox-sdk` |
+| 给 Worker 加事务邮件或收邮件 | `cloudflare-email-service` |
+| 给表单加 Turnstile / 迁移验证码 | `turnstile-spin` |
+| review Worker 项目质量和反模式 | `workers-best-practices` |
+| 做 Zero Trust / Access / WARP / Tunnel | `cloudflare-one` |
+| 做 Zscaler / Palo Alto 到 Cloudflare One 的迁移规划 | `cloudflare-one-migrations` |
+| 做网页性能审计 | `web-perf` |
+
+更口语一点的对应关系：
+
+- “我想做 Cloudflare 相关，但还不知道具体产品” -> `cloudflare`
+- “我已经确定是 Worker 项目，现在要真正落地” -> `wrangler`
+- “我要做强状态和协调逻辑” -> `durable-objects`
+- “我要做 agent，而不是普通 Worker” -> `agents-sdk`
+- “我要做代码执行环境” -> `sandbox-sdk`
+- “我要做邮件” -> `cloudflare-email-service`
+- “我要防机器人” -> `turnstile-spin`
+- “我要做代码质量 review” -> `workers-best-practices`
+
+---
+
+## 9. 安装后如何验证
+
+### 9.1 先在终端检查链接是否存在
 
 ```bash
 ls -l ~/.codex/skills
@@ -235,7 +593,7 @@ test -f ~/.codex/skills/durable-objects/SKILL.md && echo ok
 test -f ~/.codex/skills/agents-sdk/SKILL.md && echo ok
 ```
 
-### 6.2 重启 Codex
+### 9.2 重启 Codex
 
 Skill 安装完成后，建议：
 
@@ -247,7 +605,7 @@ Skill 安装完成后，建议：
 - 有些技能列表是在会话启动时扫描的
 - 不重启时，当前线程未必立即刷新
 
-### 6.3 在 Codex 中验证
+### 9.3 在 Codex 中验证
 
 方法 1：查看技能列表
 
@@ -272,17 +630,58 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 
 直接输入下面这类问题，观察 Codex 是否自动匹配相关 skill：
 
-- 帮我写一个 `wrangler.toml`
+- 帮我写一个 `wrangler.jsonc`
 - 给我一个 Durable Object 示例
 - 帮我搭一个 Cloudflare Worker 项目
 
 ---
 
-## 7. 更新方式
+## 10. 日常使用建议
+
+对于 Cloudflare 相关任务，推荐按下面的思路使用：
+
+### 10.1 不确定产品怎么选
+
+优先叫：
+
+```text
+$cloudflare
+```
+
+### 10.2 已经知道自己要做 Worker
+
+优先叫：
+
+```text
+$wrangler
+```
+
+### 10.3 已经知道要做 DO、Agent、邮件、验证码
+
+直接精确调用对应 skill：
+
+- `$durable-objects`
+- `$agents-sdk`
+- `$cloudflare-email-service`
+- `$turnstile-spin`
+
+### 10.4 想让 Codex 帮你做代码评审
+
+优先叫：
+
+```text
+$workers-best-practices review 一下这个仓库
+```
+
+这样 Codex 会更容易进入正确的审查模式。
+
+---
+
+## 11. 更新方式
 
 因为本次采用的是软链接，所以更新非常简单。
 
-### 7.1 更新 skills 仓库
+### 11.1 更新 skills 仓库
 
 进入仓库后拉最新内容：
 
@@ -291,7 +690,7 @@ cd /home/robot/skills
 git pull
 ```
 
-### 7.2 重新打开 Codex
+### 11.2 重新打开 Codex
 
 ```text
 重启 Codex 或新开线程
@@ -304,9 +703,9 @@ git pull
 
 ---
 
-## 8. 仓库迁移后的影响与修复
+## 12. 仓库迁移后的影响与修复
 
-### 8.1 仓库迁移会不会影响 Skill 使用
+### 12.1 仓库迁移会不会影响 Skill 使用
 
 会，前提是你使用的是软链接安装，并且你做的是“移动”而不是“复制”。
 
@@ -324,7 +723,7 @@ git pull
 
 当旧路径不存在时，Codex 就无法继续读取该 skill。
 
-### 8.2 什么情况不会受影响
+### 12.2 什么情况不会受影响
 
 以下情况通常不会影响：
 
@@ -332,7 +731,7 @@ git pull
 - 旧路径还保留着
 - `~/.codex/skills` 仍然能指向原目录
 
-### 8.3 如何检查链接是否失效
+### 12.3 如何检查链接是否失效
 
 ```bash
 for p in ~/.codex/skills/*; do
@@ -345,7 +744,7 @@ for p in ~/.codex/skills/*; do
 done
 ```
 
-### 8.4 本次实际修复方法
+### 12.4 本次实际修复方法
 
 本次 `skills` 仓库迁移到：
 
@@ -364,7 +763,7 @@ for d in /home/robot/skills/skills/*; do
 done
 ```
 
-### 8.5 修复后的验证
+### 12.5 修复后的验证
 
 ```bash
 test -f ~/.codex/skills/cloudflare/SKILL.md && echo ok
@@ -380,9 +779,9 @@ test -f ~/.codex/skills/agents-sdk/SKILL.md && echo ok
 
 ---
 
-## 9. 卸载方式
+## 13. 卸载方式
 
-### 9.1 删除单个 Skill
+### 13.1 删除单个 Skill
 
 例如删除 `cloudflare`：
 
@@ -390,7 +789,7 @@ test -f ~/.codex/skills/agents-sdk/SKILL.md && echo ok
 rm ~/.codex/skills/cloudflare
 ```
 
-### 9.2 删除全部本次安装的 Cloudflare Skills
+### 13.2 删除全部本次安装的 Cloudflare Skills
 
 ```bash
 rm ~/.codex/skills/agents-sdk
@@ -413,7 +812,7 @@ rm ~/.codex/skills/wrangler
 
 ---
 
-## 10. 如果不想用软链接，也可以复制安装
+## 14. 如果不想用软链接，也可以复制安装
 
 适合场景：
 
@@ -439,9 +838,9 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 
 ---
 
-## 11. 常见问题
+## 15. 常见问题
 
-### 11.1 安装后 `/skills` 看不到新技能
+### 15.1 安装后 `/skills` 看不到新技能
 
 排查顺序：
 
@@ -450,7 +849,7 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 3. 确认软链接目标目录没有被移动
 4. 确认 `SKILL.md` 文件名和目录结构正确
 
-### 11.2 skills 仓库迁移后突然失效
+### 15.2 skills 仓库迁移后突然失效
 
 大概率是软链接仍然指向旧路径。
 
@@ -461,7 +860,7 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 3. 批量删除旧链接并重新建立到新路径
 4. 重启 Codex 或新开线程
 
-### 11.3 我已经安装了 skill，为什么还不能使用 Cloudflare 的在线文档或 API
+### 15.3 我已经安装了 skill，为什么还不能使用 Cloudflare 的在线文档或 API
 
 原因：
 
@@ -476,7 +875,7 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 - `cloudflare-builds`
 - `cloudflare-observability`
 
-### 11.4 Skill 和 Plugin 到底是不是一回事
+### 15.4 Skill 和 Plugin 到底是不是一回事
 
 不是一回事。
 
@@ -487,7 +886,7 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 
 当前 `cloudflare/skills` 仓库本身更接近“通用 skills 仓库”，不是一个可直接被 Codex 当作完整本地插件安装的现成 `.codex-plugin` 项目。
 
-### 11.5 什么时候应该做成 Plugin
+### 15.5 什么时候应该做成 Plugin
 
 适合以下情况：
 
@@ -499,7 +898,7 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 
 ---
 
-## 12. 本次操作总结
+## 16. 本次操作总结
 
 本次已经完成的是：
 
@@ -516,11 +915,11 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 
 ---
 
-## 13. 后续可继续扩展的方向
+## 17. 后续可继续扩展的方向
 
 如果后面要继续完善，可以做下面两件事：
 
-### 12.1 接入 Cloudflare MCP
+### 17.1 接入 Cloudflare MCP
 
 把仓库中的 `.mcp.json` 内容转成 Codex 可识别的 MCP 配置，写入：
 
@@ -528,7 +927,7 @@ cp -R /home/robot/skills/skills/* ~/.codex/skills/
 ~/.codex/config.toml
 ```
 
-### 12.2 做成本地 Codex Plugin
+### 17.2 做成本地 Codex Plugin
 
 补齐：
 
