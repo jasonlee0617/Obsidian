@@ -63,13 +63,19 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 ### 3.1 本地已克隆仓库位置
 
 ```bash
-/home/robot/S622_robotarm/src/skills
+/home/robot/skills
 ```
+
+补充说明：
+
+- 该仓库最初放在 `/home/robot/S622_robotarm/src/skills`
+- 后续迁移到了 `/home/robot/skills`
+- 由于本次安装方式使用的是软链接，所以仓库路径变化后，需要同步修复 `~/.codex/skills` 下的链接目标
 
 ### 3.2 该仓库中真正的 Skill 目录
 
 ```bash
-/home/robot/S622_robotarm/src/skills/skills
+/home/robot/skills/skills
 ```
 
 该目录下目前包含：
@@ -165,7 +171,7 @@ mkdir -p ~/.codex/skills
 ### 5.2 批量把本地 Cloudflare skills 软链接到 Codex
 
 ```bash
-for d in /home/robot/S622_robotarm/src/skills/skills/*; do
+for d in /home/robot/skills/skills/*; do
   name=$(basename "$d")
   target="$HOME/.codex/skills/$name"
   if [ -e "$target" ]; then
@@ -281,7 +287,7 @@ $cloudflare 帮我写一个最小 Cloudflare Worker
 进入仓库后拉最新内容：
 
 ```bash
-cd /home/robot/S622_robotarm/src/skills
+cd /home/robot/skills
 git pull
 ```
 
@@ -298,9 +304,85 @@ git pull
 
 ---
 
-## 8. 卸载方式
+## 8. 仓库迁移后的影响与修复
 
-### 8.1 删除单个 Skill
+### 8.1 仓库迁移会不会影响 Skill 使用
+
+会，前提是你使用的是软链接安装，并且你做的是“移动”而不是“复制”。
+
+原因：
+
+- `~/.codex/skills/<skill-name>` 本质上是一个软链接
+- 它会直接指向 skills 仓库中的真实目录
+- 如果真实目录从旧路径移动到新路径，原软链接就会失效
+
+例如：
+
+```bash
+~/.codex/skills/cloudflare -> /旧路径/skills/skills/cloudflare
+```
+
+当旧路径不存在时，Codex 就无法继续读取该 skill。
+
+### 8.2 什么情况不会受影响
+
+以下情况通常不会影响：
+
+- 你只是复制了一份 skills 仓库到新位置
+- 旧路径还保留着
+- `~/.codex/skills` 仍然能指向原目录
+
+### 8.3 如何检查链接是否失效
+
+```bash
+for p in ~/.codex/skills/*; do
+  [ -L "$p" ] || continue
+  if [ -e "$p" ]; then
+    echo "ok $(basename "$p")"
+  else
+    echo "broken $(basename "$p") -> $(readlink "$p")"
+  fi
+done
+```
+
+### 8.4 本次实际修复方法
+
+本次 `skills` 仓库迁移到：
+
+```bash
+/home/robot/skills
+```
+
+因此需要把 `~/.codex/skills` 下的 Cloudflare skills 全部重建为新路径：
+
+```bash
+for d in /home/robot/skills/skills/*; do
+  name=$(basename "$d")
+  target="$HOME/.codex/skills/$name"
+  rm -f "$target"
+  ln -s "$d" "$target"
+done
+```
+
+### 8.5 修复后的验证
+
+```bash
+test -f ~/.codex/skills/cloudflare/SKILL.md && echo ok
+test -f ~/.codex/skills/wrangler/SKILL.md && echo ok
+test -f ~/.codex/skills/durable-objects/SKILL.md && echo ok
+test -f ~/.codex/skills/agents-sdk/SKILL.md && echo ok
+```
+
+之后再：
+
+- 重启 Codex
+- 或新开一个线程
+
+---
+
+## 9. 卸载方式
+
+### 9.1 删除单个 Skill
 
 例如删除 `cloudflare`：
 
@@ -308,7 +390,7 @@ git pull
 rm ~/.codex/skills/cloudflare
 ```
 
-### 8.2 删除全部本次安装的 Cloudflare Skills
+### 9.2 删除全部本次安装的 Cloudflare Skills
 
 ```bash
 rm ~/.codex/skills/agents-sdk
@@ -327,11 +409,11 @@ rm ~/.codex/skills/wrangler
 说明：
 
 - 删除的是软链接
-- 不会删除原始仓库 `/home/robot/S622_robotarm/src/skills`
+- 不会删除原始仓库 `/home/robot/skills`
 
 ---
 
-## 9. 如果不想用软链接，也可以复制安装
+## 10. 如果不想用软链接，也可以复制安装
 
 适合场景：
 
@@ -341,13 +423,13 @@ rm ~/.codex/skills/wrangler
 示例：
 
 ```bash
-cp -R /home/robot/S622_robotarm/src/skills/skills/cloudflare ~/.codex/skills/
+cp -R /home/robot/skills/skills/cloudflare ~/.codex/skills/
 ```
 
 批量复制：
 
 ```bash
-cp -R /home/robot/S622_robotarm/src/skills/skills/* ~/.codex/skills/
+cp -R /home/robot/skills/skills/* ~/.codex/skills/
 ```
 
 缺点：
@@ -357,9 +439,9 @@ cp -R /home/robot/S622_robotarm/src/skills/skills/* ~/.codex/skills/
 
 ---
 
-## 10. 常见问题
+## 11. 常见问题
 
-### 10.1 安装后 `/skills` 看不到新技能
+### 11.1 安装后 `/skills` 看不到新技能
 
 排查顺序：
 
@@ -368,7 +450,18 @@ cp -R /home/robot/S622_robotarm/src/skills/skills/* ~/.codex/skills/
 3. 确认软链接目标目录没有被移动
 4. 确认 `SKILL.md` 文件名和目录结构正确
 
-### 10.2 我已经安装了 skill，为什么还不能使用 Cloudflare 的在线文档或 API
+### 11.2 skills 仓库迁移后突然失效
+
+大概率是软链接仍然指向旧路径。
+
+处理方式：
+
+1. 先检查 `~/.codex/skills` 下的链接是否 broken
+2. 确认新的仓库目录
+3. 批量删除旧链接并重新建立到新路径
+4. 重启 Codex 或新开线程
+
+### 11.3 我已经安装了 skill，为什么还不能使用 Cloudflare 的在线文档或 API
 
 原因：
 
@@ -383,7 +476,7 @@ cp -R /home/robot/S622_robotarm/src/skills/skills/* ~/.codex/skills/
 - `cloudflare-builds`
 - `cloudflare-observability`
 
-### 10.3 Skill 和 Plugin 到底是不是一回事
+### 11.4 Skill 和 Plugin 到底是不是一回事
 
 不是一回事。
 
@@ -394,7 +487,7 @@ cp -R /home/robot/S622_robotarm/src/skills/skills/* ~/.codex/skills/
 
 当前 `cloudflare/skills` 仓库本身更接近“通用 skills 仓库”，不是一个可直接被 Codex 当作完整本地插件安装的现成 `.codex-plugin` 项目。
 
-### 10.4 什么时候应该做成 Plugin
+### 11.5 什么时候应该做成 Plugin
 
 适合以下情况：
 
@@ -406,13 +499,14 @@ cp -R /home/robot/S622_robotarm/src/skills/skills/* ~/.codex/skills/
 
 ---
 
-## 11. 本次操作总结
+## 12. 本次操作总结
 
 本次已经完成的是：
 
 - 找到本地 `cloudflare/skills` 仓库
-- 确认真正的技能目录在 `/home/robot/S622_robotarm/src/skills/skills`
+- 确认真正的技能目录当前在 `/home/robot/skills/skills`
 - 将全部 skills 软链接安装到 `~/.codex/skills`
+- 在仓库迁移后，重新修复了 `~/.codex/skills` 的软链接目标
 - 校验核心 skill 的 `SKILL.md` 可正常访问
 
 本次没有完成的是：
@@ -422,7 +516,7 @@ cp -R /home/robot/S622_robotarm/src/skills/skills/* ~/.codex/skills/
 
 ---
 
-## 12. 后续可继续扩展的方向
+## 13. 后续可继续扩展的方向
 
 如果后面要继续完善，可以做下面两件事：
 
