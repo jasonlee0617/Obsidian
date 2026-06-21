@@ -60,6 +60,9 @@ cd ~/my-skills
 git clone https://github.com/M4cs/compressoor.git
 cd compressoor
 python3 skills/compressoor/scripts/install_codex_compressoor.py --force
+
+##如果未生效，直接在codex里输入：
+使用 Skill Installer 安装本地技能：/home/robot/my-skills/compressoor/skills/compressoor
 ```
 
 ### 1.3 Agent-Skills-for-Context-Engineering(上下文压缩方法论 skill)
